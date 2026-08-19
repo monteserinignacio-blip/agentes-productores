@@ -2,12 +2,12 @@
 
 Trabajo coordinando un equipo comercial que maneja la relación con **Agentes
 Productores** para un grupo de empresas financieras. Antes de cada reunión
-con un productor necesito juntar su información de tres lugares distintos
-(un Excel, un CRM propio, y a veces alguna noticia pública sobre esa
+con un productor o un cliente necesito juntar su información de tres lugares distintos
+(un Excel, un sistema de seguimiento del equipo, y a veces alguna noticia pública sobre esa
 persona/empresa) — y eso me lleva tiempo cada vez.
 
 Este es un agente de línea de comandos que hace ese trabajo por mí: le
-escribo el nombre de un productor y busca en las tres fuentes a la vez,
+escribo el nombre de un productor o cliente y busca en las tres fuentes a la vez,
 después me arma una "ficha" ordenada y legible, lista para llevar a la
 reunión.
 
