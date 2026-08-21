@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de Productores</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --panel: #17171f;
+    --panel-2: #1e1e28;
+    --border: #2a2a36;
+    --text: #f2f2f5;
+    --muted: #9a9aab;
+    --accent: #a855f7;
+    --accent-2: #c084fc;
+    --danger: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  header h1 span { color: var(--accent-2); }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .buscador {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .buscador input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+  }
+  .buscador input:focus { border-color: var(--accent); }
+  .buscador button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .buscador button:hover { background: var(--accent-2); }
+  .buscador button:disabled { opacity: 0.6; cursor: default; }
+
+  .estado { color: var(--muted); font-size: 14px; margin-bottom: 20px; min-height: 20px; }
+
+  .alerta {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid var(--danger);
+    color: #fcd34d;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .seccion { margin-bottom: 32px; }
+  .seccion-titulo {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--accent-2);
+    font-weight: 600;
+  }
+  .campo { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 13px; border-top: 1px solid var(--border); }
+  .campo:first-of-type { border-top: none; }
+  .campo .k { color: var(--muted); }
+  .campo .v { text-align: right; word-break: break-word; }
+
+  .noticia { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; }
+  .noticia .titulo { font-size: 14px; margin-bottom: 4px; }
+  .noticia .meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .noticia a { color: var(--accent-2); font-size: 12px; text-decoration: none; }
+  .noticia a:hover { text-decoration: underline; }
+
+  .vacio { color: var(--muted); font-size: 14px; font-style: italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agente de <span>Productores</span></h1>
+  <p>Ficha para reunión — Excel local + CRM (Firebase) + noticias públicas</p>
+</header>
+
+<main>
+  <div class="buscador">
+    <input id="nombre" type="text" placeholder="Nombre del productor (ej. Pedro Carafi)" autofocus>
+    <button id="btnBuscar">Buscar</button>
+  </div>
+  <div class="estado" id="estado"></div>
+  <div id="resultado"></div>
+</main>
+
+<script>
+const input = document.getElementById("nombre");
+const boton = document.getElementById("btnBuscar");
+const estado = document.getElementById("estado");
+const resultado = document.getElementById("resultado");
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function renderCampos(campos) {
+  return Object.entries(campos).map(([k, v]) =>
+    `<div class="campo"><span class="k">${escapeHtml(k)}</span><span class="v">${escapeHtml(v)}</span></div>`
+  ).join("");
+}
+
+function renderSeccion(titulo, items, vacioTexto) {
+  if (!items.length) {
+    return `<div class="seccion"><div class="seccion-titulo">${titulo}</div><div class="vacio">${vacioTexto}</div></div>`;
+  }
+  const cards = items.map(item =>
+    `<div class="card"><h3>${escapeHtml(item.titulo)}</h3>${renderCampos(item.campos)}</div>`
+  ).join("");
+  return `<div class="seccion"><div class="seccion-titulo">${titulo}</div><div class="grid">${cards}</div></div>`;
+}
+
+function renderNoticias(noticias) {
+  if (!noticias.length) {
+    return `<div class="seccion"><div class="seccion-titulo">Noticias públicas</div><div class="vacio">No se encontraron noticias recientes.</div></div>`;
+  }
+  const items = noticias.map(n => `
+    <div class="noticia">
+      <div class="titulo">${escapeHtml(n.title)}</div>
+      <div class="meta">${escapeHtml(n.source)} · ${escapeHtml(n.date)}</div>
+      <a href="${n.link}" target="_blank" rel="noopener">Ver noticia →</a>
+    </div>
+  `).join("");
+  return `<div class="seccion"><div class="seccion-titulo">Noticias públicas</div>${items}</div>`;
+}
+
+async function buscar() {
+  const nombre = input.value.trim();
+  if (!nombre) return;
+
+  boton.disabled = true;
+  estado.textContent = "Buscando en Excel, CRM y noticias...";
+  resultado.innerHTML = "";
+
+  try {
+    const resp = await fetch(`/api/buscar?nombre=${encodeURIComponent(nombre)}`);
+    const datos = await resp.json();
+
+    if (!resp.ok) {
+      estado.textContent = "";
+      resultado.innerHTML = `<div class="alerta">${escapeHtml(datos.error || "Ocurrió un error.")}</div>`;
+      return;
+    }
+
+    estado.textContent = "";
+    let html = "";
+    if (datos.noticias.length) {
+      html += `<div class="alerta">⚠ Se encontraron ${datos.noticias.length} noticia(s) sobre "${escapeHtml(datos.nombre_para_noticias)}" — revisá la sección de Noticias.</div>`;
+    }
+    html += renderSeccion("Datos en Excel", datos.excel, "No se encontraron datos en el Excel.");
+    html += renderSeccion("Datos en el CRM", datos.crm, "No se encontraron registros en el CRM.");
+    html += renderNoticias(datos.noticias);
+    resultado.innerHTML = html;
+  } catch (e) {
+    estado.textContent = "";
+    resultado.innerHTML = `<div class="alerta">No se pudo conectar con el servidor local.</div>`;
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+boton.addEventListener("click", buscar);
+input.addEventListener("keydown", e => { if (e.key === "Enter") buscar(); });
+</script>
+</body>
+</html>

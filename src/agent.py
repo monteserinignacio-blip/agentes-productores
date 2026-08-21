@@ -137,9 +137,12 @@ def _nombre_completo_mas_confiable(nombre_buscado: str, crm_registros: dict[str,
     return nombre_buscado
 
 
-def build_producer_summary(nombre_productor: str, verbose: bool = True) -> str:
-    """Junta las fuentes disponibles y arma el resumen del productor."""
-
+def gather_producer_data(nombre_productor: str, verbose: bool = True) -> dict:
+    """
+    Busca en todas las fuentes y devuelve los resultados crudos (sin
+    convertir a texto todavía), para que cada "cara" del programa (terminal,
+    web) los muestre como quiera.
+    """
     if verbose:
         print(f"Buscando en los Excel locales...")
     hojas = local_excel.search_excel(nombre_productor, Config.EXCEL_PATHS)
@@ -153,6 +156,58 @@ def build_producer_summary(nombre_productor: str, verbose: bool = True) -> str:
     if verbose:
         print(f"Buscando noticias sobre '{nombre_para_noticias}' en internet...")
     noticias = news.search_news(nombre_para_noticias)
+
+    return {
+        "nombre_productor": nombre_productor,
+        "nombre_para_noticias": nombre_para_noticias,
+        "hojas": hojas,
+        "crm_registros": crm_registros,
+        "noticias": noticias,
+    }
+
+
+def datos_a_dict(datos: dict) -> dict:
+    """Convierte los resultados crudos en algo fácil de mandar como JSON a
+    una interfaz web: listas de {título, campos} en vez de texto plano."""
+    excel = []
+    for nombre_archivo, df in datos["hojas"].items():
+        for i, (_, fila) in enumerate(df.iterrows(), start=1):
+            campos = {}
+            for campo, valor in fila.to_dict().items():
+                if campo in ("_hoja",) or campo.startswith("Unnamed") or _campo_vacio(valor):
+                    continue
+                campos[_humanizar_campo(campo)] = valor
+            if campos:
+                excel.append({"titulo": f"{nombre_archivo} — fila {i}", "campos": campos})
+
+    crm = []
+    for nombre_coleccion, registros in datos["crm_registros"].items():
+        titulo = NOMBRES_COLECCIONES.get(nombre_coleccion, nombre_coleccion)
+        for r in registros:
+            campos = {}
+            for campo, valor in r.items():
+                if campo == "_id" or _campo_vacio(valor):
+                    continue
+                campos[_humanizar_campo(campo)] = valor
+            if campos:
+                crm.append({"titulo": titulo, "campos": campos})
+
+    return {
+        "nombre_productor": datos["nombre_productor"],
+        "nombre_para_noticias": datos["nombre_para_noticias"],
+        "excel": excel,
+        "crm": crm,
+        "noticias": datos["noticias"],
+    }
+
+
+def build_producer_summary(nombre_productor: str, verbose: bool = True) -> str:
+    """Junta las fuentes disponibles y arma el resumen del productor, en texto plano."""
+    datos = gather_producer_data(nombre_productor, verbose=verbose)
+    hojas = datos["hojas"]
+    crm_registros = datos["crm_registros"]
+    nombre_para_noticias = datos["nombre_para_noticias"]
+    noticias = datos["noticias"]
 
     bloques_excel = [_df_to_text(nombre, df) for nombre, df in hojas.items()]
     contexto_excel = "\n\n".join(b for b in bloques_excel if b) or "No se encontraron datos en el Excel."
